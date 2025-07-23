@@ -62,7 +62,7 @@ multi-agent-poc/
 
 ---
 
-## 🧠 Built With
+## Built With
 
 * [LangGraph](https://github.com/langchain-ai/langgraph)
 * [LangChain](https://github.com/langchain-ai/langchain)
