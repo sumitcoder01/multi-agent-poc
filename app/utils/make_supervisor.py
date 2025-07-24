@@ -5,8 +5,16 @@ from langgraph.graph import END
 from langgraph.types import Command
 
 
-def make_supervisor_node(llm: BaseChatModel , system_prompt : str , members: list[str]) -> str:
+def make_supervisor_node(llm: BaseChatModel ,members: list[str]  , system_prompt:Optional[str] = None) -> str:
     options = ["FINISH"] + members
+
+    system_prompt = (
+        "You are a supervisor tasked with managing a conversation between the"
+        f" following workers: {members}. Given the following user request,"
+        " respond with the worker to act next. Each worker will perform a"
+        " task and respond with their results and status. When finished,"
+        " respond with FINISH."
+    )
     
     class Router(TypedDict):
         """Worker to route to next. If no workers needed, route to FINISH."""

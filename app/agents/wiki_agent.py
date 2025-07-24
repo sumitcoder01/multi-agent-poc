@@ -4,7 +4,7 @@ from langgraph.prebuilt import create_react_agent
 from typing import Literal
 from langchain_core.messages import HumanMessage
 from app.tools.wiki_tool import wiki_tool
-from app.llm.groq_client import llm
+from app.llm.llm_client import llm
 from langgraph.types import Command
 from app.graph.state import State
 from langchain_core.messages import HumanMessage

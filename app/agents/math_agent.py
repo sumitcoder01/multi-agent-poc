@@ -1,5 +1,5 @@
 from langgraph.prebuilt import create_react_agent
-from app.llm.groq_client import llm
+from app.llm.llm_client import llm
 from typing import Literal
 from langgraph.types import Command
 from app.graph.state import State
