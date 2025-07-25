@@ -115,7 +115,7 @@ venv.bak/
 .pydevproject
 
 # dotenv
-.env.*
+.env
 .env.local
 
 # OS-generated files
