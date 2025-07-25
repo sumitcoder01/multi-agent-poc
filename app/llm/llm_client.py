@@ -2,7 +2,7 @@
 
 # Import all the possible chat models you want to support
 from langchain_groq import ChatGroq
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 from langchain_deepseek import ChatDeepSeek
 from langchain_huggingface import ChatHuggingFace
 
@@ -10,6 +10,8 @@ from langchain_huggingface import ChatHuggingFace
 from app.core.config import (
     LLM_PROVIDER,
     GROQ_API_KEY,
+    OPENAI_API_KEY,
+    AZURE_ENDPOINT,
     HUGGINGFACEHUB_API_TOKEN
 )
 
@@ -29,10 +31,11 @@ if LLM_PROVIDER == 'groq':
 
 elif LLM_PROVIDER == 'openai':
     # The OpenAI library automatically looks for the OPENAI_API_KEY env variable
-    llm = ChatOpenAI(
-        model_name="gpt-4o-mini", # A powerful and cost-effective model
-        temperature=0,
-        max_tokens=None,
+    llm = AzureChatOpenAI(
+        api_key=OPENAI_API_KEY,
+        azure_endpoint=AZURE_ENDPOINT,
+        api_version='2024-08-01-preview', # 2024-08-01-preview or later
+        azure_deployment= 'gpt-mini'
     )
 
 elif LLM_PROVIDER == 'deepseek':

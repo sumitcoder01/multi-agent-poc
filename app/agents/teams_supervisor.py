@@ -6,10 +6,10 @@ from app.graph.state import State
 from app.llm.llm_client import llm
 from langchain_core.messages import HumanMessage
 from app.graph.research_workflow import research_graph
-from app.graph.math_workflow import math_graph
+from app.graph.case_management_workflow import case_management_graph
 
 
-members= ["research_team", "math_team"]
+members= ["research_team", "case_management_team"]
 
 teams_supervisor_node = make_supervisor_node(llm , members)
 
@@ -28,13 +28,13 @@ def call_research_team(state: State) -> Command[Literal["supervisor"]]:
     )
 
 
-def call_math_team(state: State) -> Command[Literal["supervisor"]]:
+def call_case_management_team(state: State) -> Command[Literal["supervisor"]]:
     response = math_graph.invoke({"messages": state["messages"][-1]})
     return Command(
         update={
             "messages": [
                 HumanMessage(
-                    content=response["messages"][-1].content, name="math_team"
+                    content=response["messages"][-1].content, name="case_management_team"
                 )
             ]
         },

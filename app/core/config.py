@@ -17,6 +17,7 @@ LLM_PROVIDER = os.getenv("LLM_PROVIDER", "groq").lower()
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+AZURE_ENDPOINT = os.getenv("AZURE_ENDPOINT")
 HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
@@ -29,6 +30,9 @@ if LLM_PROVIDER == 'groq' and not GROQ_API_KEY:
 
 if LLM_PROVIDER == 'openai' and not OPENAI_API_KEY:
     raise ValueError("LLM_PROVIDER is 'openai', but OPENAI_API_KEY is missing in .env")
+
+if LLM_PROVIDER == 'openai' and not AZURE_ENDPOINT:
+    raise ValueError("LLM_PROVIDER is 'openai', but AZURE_ENDPOINT is missing in .env")
 
 if LLM_PROVIDER == 'deepseek' and not DEEPSEEK_API_KEY:
     raise ValueError("LLM_PROVIDER is 'deepseek', but DEEPSEEK_API_KEY is missing in .env")
