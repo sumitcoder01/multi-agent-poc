@@ -59,3 +59,34 @@ focal_parties_db = {
         "notes": "Involved in transaction TRN-102.",
     },
 }
+
+
+signals_db = {
+    # Signals linked to a specific incident ID
+    "INC-001": {
+        "incident_id": "INC-001",
+        "signal_count": 2,
+        "violated_rules": [
+            {
+                "rule_id": "RULE-01A",
+                "severity": "High",
+                "description": "Server access detected outside of standard business hours."
+            },
+            {
+                "rule_id": "RULE-05B",
+                "severity": "Medium",
+                "description": "Multiple failed login attempts from a new IP address."
+            }
+        ]
+    },
+    # Generic information for when no incident ID is provided
+    "_generic_info": {
+        "description": "The signal system tracks events based on violated security and operational rules.",
+        "tracked_signal_types": [
+            "Firewall Anomaly",
+            "Login Behavior Anomaly",
+            "Malicious Link Detection",
+            "Data Exfiltration Pattern"
+        ]
+    }
+}
