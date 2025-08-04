@@ -1,144 +1,64 @@
 # app/graph/main_workflow.py
 
 from langgraph.graph import StateGraph, END
-from app.graph.state import as State
-# Import the LLM client, which is shared by all supervisors
-from app.llm.llm_client import llm
-# Import the hierarchical registry that defines our teams and agents
-from app.teams.registry import HIERARCHICAL_REGISTRY
-# Import the factories for creating supervisors and team graphs
-from app.utils.supervisor_factory import create_supervisor_node
-from app.graph.team_graph_factory import create_team_graph
-# Import all the individual worker agent nodes
+from langgraph.prebuilt import ToolNode
+from langchain_core.messages import AIMessage
+from app.graph.state import State
 
-from app.agents.web_agent import search_node as web_search_agent_node
-from app.agents.wiki_agent import wiki_node as wiki_search_agent_node
-from app.agents.incident_agent import incident_node as incident_agent_node
-from app.agents.transaction_agent import transaction_node as transaction_agent_node
-from app.agents.focal_party_agent import focal_party_node as focal_party_agent_node
-from app.agents.signal_agent import signal_node as signal_agent_node
+from app.agents.supervisor_factory import create_supervisor_agent
 
-
+# Import the compiled team sub-graphs
+from app.teams.research_team import research_graph
+from app.teams.case_management_team import case_management_graph
+from app.teams.signal_team import signal_graph
 
 # =====================================================================
-
-# ==        STEP 1: CREATE THE TEAM SUB-GRAPHS DYNAMICALLY           ==
-
+# ==              BUILD THE MAIN APPLICATION GRAPH                   ==
 # =====================================================================
 
+# 1. Create the top-level supervisor and get its dynamically created tools.
+main_supervisor, supervisor_tools = create_supervisor_agent("__main__")
 
+# 2. Initialize the main StateGraph.
+main_graph_builder = StateGraph(State)
 
-# Create a dictionary to hold our compiled team graphs
+# 3. Add the nodes to the graph.
+main_graph_builder.add_node("supervisor", main_supervisor)
+main_graph_builder.set_entry_point("supervisor")
 
-team_graphs = {}
+# The ToolNode now correctly receives the dynamically created tools.
+main_graph_builder.add_node("handoff_tool_executor", ToolNode(supervisor_tools))
 
+main_graph_builder.add_node("research_team", research_graph)
+main_graph_builder.add_node("case_management_team", case_management_graph)
+main_graph_builder.add_node("signal_team", signal_graph)
 
+# 4. Define the edges for the workflow.
+# main_graph_builder.add_edge("research_team", "supervisor")
+# main_graph_builder.add_edge("case_management_team", "supervisor")
+# main_graph_builder.add_edge("signal_team", "supervisor")
 
-# A mapping from node names (strings) to the actual callable node functions
+def route_after_supervisor(state: State):
+    """
+    Decides the next step after the supervisor has acted.
+    """
+    last_message = state['messages'][-1]
+    if isinstance(last_message, AIMessage) and last_message.tool_calls:
+        return "handoff_tool_executor"
+    else:
+        return END
 
-# This allows us to look up the function from the name defined in the registry
-
-all_worker_nodes = {
-
-    "web_search_agent": web_search_agent_node,
-
-    "wiki_search_agent": wiki_search_agent_node,
-
-    "incident_agent": incident_agent_node,
-
-    "transaction_agent": transaction_agent_node,
-
-    "focal_party_agent": focal_party_agent_node,
-
-    "signal_agent": signal_agent_node,
-
-}
-
-# Iterate through the registry to build each team's graph
-
-for team_name, team_members in HIERARCHICAL_REGISTRY.items():
-    # We only create sub-graphs for actual teams, not the main supervisor's entry
-    if team_name == "__main__":
-        continue
-    # Create the supervisor for this specific team
-    supervisor_node = create_supervisor_node(llm, team_name, team_members)
-
-    # Get the callable functions for this team's workers
-    worker_nodes_for_team = [all_worker_nodes[member.name] for member in team_members]
-
-    # Create the team's sub-graph using our factory
-
-    team_graph = create_team_graph(supervisor_node, worker_nodes_for_team)
-
-    # Store the compiled graph in our dictionary
-
-    team_graphs[team_name] = team_graph
-
-# =====================================================================
-
-# ==      STEP 2: CREATE THE TOP-LEVEL SUPERVISOR AND MAIN GRAPH     ==
-
-# =====================================================================
-
-# The top-level supervisor manages the teams themselves
-
-top_supervisor_members = HIERARCHICAL_REGISTRY["__main__"]
-
-top_supervisor_node = create_supervisor_node(llm, "TeamSupervisor", top_supervisor_members)
-
-
-# Initialize the main application graph
-
-main_graph = StateGraph(State)
-
-# Add the top-level supervisor as the entry point
-
-main_graph.add_node("TeamSupervisor", top_supervisor_node)
-
-main_graph.set_entry_point("TeamSupervisor")
-
-# Add nodes for each team's sub-graph
-
-for team_name, team_graph in team_graphs.items():
-
-    main_graph.add_node(team_name, team_graph)
-
-
-# Define the final routing logic from the top-level supervisor
-
-def route_from_main_supervisor(state: State):
-
-    """Reads the 'next_node' value from the state to route to a team or end."""
-
-    return state.get("next_node")
-
-
-main_graph.add_conditional_edges(
-
-    "TeamSupervisor",
-
-    route_from_main_supervisor,
-
-    # The mapping tells the main graph which team sub-graph to call
-
-    {team_name: team_name for team_name in team_graphs.keys()}
-
+main_graph_builder.add_conditional_edges(
+    "supervisor",
+    route_after_supervisor,
+    {
+        "handoff_tool_executor": "handoff_tool_executor",
+        END: END
+    }
 )
 
-# After any team has finished its work, the entire process is over.
-
-# The flow returns to the main supervisor, whose prompt will now tell it to FINISH.
-
-for team_name in team_graphs.keys():
-
-    main_graph.add_edge(team_name, "TeamSupervisor")
-
+# =====================================================================
+# ==                   COMPILE THE FINAL APP                         ==
 # =====================================================================
 
-# ==                   STEP 3: COMPILE THE FINAL APP                 ==
-
-# =====================================================================
-
-# The final, compiled application graph
-
-super_graph = main_graph.compile()
+super_graph = main_graph_builder.compile()

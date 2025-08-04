@@ -4,7 +4,7 @@ import traceback
 from fastapi import APIRouter, HTTPException
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel
-from app.graph.workflow import super_graph as graph_app
+from app.graph.main_workflow import super_graph as graph_app
 from langgraph.errors import GraphRecursionError
 
 class QueryRequest(BaseModel):
