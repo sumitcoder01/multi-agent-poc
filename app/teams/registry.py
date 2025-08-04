@@ -2,12 +2,6 @@
 
 from app.utils.schemas import NodeDescription
 
-# =====================================================================
-# ==               STEP 1: DEFINE ALL WORKER AGENTS                  ==
-# =====================================================================
-# These are the individual agents that perform the final tasks.
-# Each description should be clear and concise for the supervisor LLM.
-
 # --- Research Team Workers ---
 wiki_worker = NodeDescription(
     name="wiki_search_agent",
@@ -41,22 +35,10 @@ signal_worker = NodeDescription(
     description="Looks up security and operational signals. Can be queried with an incident ID for specific signals or without for generic info."
 )
 
-
-# =====================================================================
-# ==                STEP 2: GROUP WORKERS INTO TEAMS                 ==
-# =====================================================================
-# This defines the membership of each sub-team.
-
 research_team_members = [wiki_worker, web_worker]
 case_management_team_members = [incident_worker, transaction_worker, focal_party_worker]
 signal_team_members = [signal_worker]
 
-
-# =====================================================================
-# ==                STEP 3: DEFINE THE TOP-LEVEL TEAMS               ==
-# =====================================================================
-# These are the descriptions for the sub-graphs themselves.
-# This is what the MAIN supervisor will see.
 
 research_team_supervisor = NodeDescription(
     name="research_team",
@@ -65,7 +47,7 @@ research_team_supervisor = NodeDescription(
 
 case_management_team_supervisor = NodeDescription(
     name="case_management_team",
-    description="This team handles requests related to specific internal company data. Use for any query containing an ID like 'INC-', 'TRN-', or 'FP-' or keywords like 'incident' or 'transaction'."
+    description="This team handles requests related to specific internal company data.do not use for query containing 'Signals'(High Priority statement). Use for any query containing an ID like 'INC-', 'TRN-', or 'FP-' or keywords like 'incident' or 'transaction'."
 )
 
 signal_team_supervisor = NodeDescription(
@@ -74,17 +56,11 @@ signal_team_supervisor = NodeDescription(
 )
 
 
-# =====================================================================
-# ==           STEP 4: CREATE THE FINAL HIERARCHICAL REGISTRY        ==
-# =====================================================================
-# This dictionary maps a supervisor's name to the list of nodes it manages.
-# The "__main__" key represents the top-level supervisor.
-
 HIERARCHICAL_REGISTRY = {
     "__main__": [
+        signal_team_supervisor,
         research_team_supervisor,
-        case_management_team_supervisor,
-        signal_team_supervisor
+        case_management_team_supervisor
     ],
     "research_team": research_team_members,
     "case_management_team": case_management_team_members,

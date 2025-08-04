@@ -26,24 +26,19 @@ def create_supervisor_agent(supervisor_name: str):
 
     # 3. --- THIS IS THE NEW PROMPT WITH AN EXPLICIT "EXIT" RULE ---
     prompt_header = (
-        "You are a supervisor agent. Your primary role is to analyze the user's request and "
-        "decide the next step. You can either delegate the task to a subordinate worker/team "
-        "by calling a tool, or you can conclude the conversation if no further action is needed.\n\n"
-        "## AVAILABLE WORKERS/TEAMS (TOOLS):\n"
-    )
-
-    tool_descriptions = "\n".join(
-        f"- **{tool.name}**: {tool.description}" for tool in tools
+        "You are a supervisor. Your sole responsibility is to analyze the user's request "
+        "and delegate the task to the single most appropriate subordinate by calling "
+        "the correct tool. Do not answer the user's question yourself.\n\n"
     )
 
     final_instruction = (
-        "\n\n## DECISION PROCESS:\n"
-        "1.  **Examine the user's request.**\n"
-        "2.  **You MUST delegate the task by choosing the single best tool to call.** "
-        "Your only job is to delegate to the correct worker or team. Do not respond directly."
+        "\n\n## INSTRUCTIONS:\n"
+        "1.  Read the user's request.\n"
+        "2.  Choose the single/one best tool to call to delegate the task.\n"
+        "3.  If the request is a simple greeting (e.g., 'hello'), you may respond directly."
     )
-
-    final_prompt_text = prompt_header + tool_descriptions + final_instruction
+    
+    final_prompt_text = prompt_header + final_instruction
 
     def supervisor_prompt_modifier(state: dict) -> List[BaseMessage]:
         """Injects the dynamically generated system prompt."""
@@ -58,5 +53,5 @@ def create_supervisor_agent(supervisor_name: str):
         prompt=supervisor_prompt_modifier
     )
 
-    # 5. Return both the agent and the list of tools it uses.
-    return agent, tools
+    # 5. Return the agent
+    return agent
