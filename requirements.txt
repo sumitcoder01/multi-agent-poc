@@ -11,3 +11,4 @@ langchain-openai
 langchain-deepseek
 langchain-huggingface
 huggingface-hub
+psycopg2-binary

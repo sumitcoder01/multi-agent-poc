@@ -22,6 +22,7 @@ HUGGINGFACEHUB_API_TOKEN = os.getenv("HUGGINGFACEHUB_API_TOKEN")
 
 TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # --- Conditional Validation ---
 # Raise an error at startup if the required key for the selected provider is missing.
@@ -42,3 +43,6 @@ if LLM_PROVIDER == 'huggingface' and not HUGGINGFACEHUB_API_TOKEN:
 
 if not TAVILY_API_KEY:
     raise ValueError("TAVILY_API_KEY not found in .env file. Please add it.")
+
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL not found in .env file. Please add it.")

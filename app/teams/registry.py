@@ -29,15 +29,21 @@ focal_party_worker = NodeDescription(
     description="Fetches details about a person or entity (a focal party) using their ID (e.g., 'FP-ALICE')."
 )
 
-# --- Signal Team Workers ---
 signal_worker = NodeDescription(
     name="signal_agent",
     description="Looks up security and operational signals. Can be queried with an incident ID for specific signals or without for generic info."
 )
 
+sql_worker = NodeDescription(
+    name="sql_agent",
+    description="A specialized agent that can answer questions by querying a PostgreSQL database containing application data."
+)
+
 research_team_members = [wiki_worker, web_worker]
 case_management_team_members = [incident_worker, transaction_worker, focal_party_worker]
 signal_team_members = [signal_worker]
+sql_team_members = [sql_worker]
+
 
 
 research_team_supervisor = NodeDescription(
@@ -55,14 +61,21 @@ signal_team_supervisor = NodeDescription(
     description="This team handles requests related to security signals and rule violations. Use for any query containing keywords like 'signal', 'rules', or 'violation'."
 )
 
+sql_team_supervisor = NodeDescription(
+    name="sql_team",
+    description="This team is the highest priority and MUST be used to querying a SQL database."
+)
+
 
 HIERARCHICAL_REGISTRY = {
     "__main__": [
+        sql_team_supervisor,
         signal_team_supervisor,
         research_team_supervisor,
         case_management_team_supervisor
     ],
     "research_team": research_team_members,
     "case_management_team": case_management_team_members,
-    "signal_team": signal_team_members
+    "signal_team": signal_team_members,
+    "sql_team": sql_team_members
 }

@@ -10,6 +10,7 @@ from app.agents.supervisor_factory import create_supervisor_agent
 from app.teams.research_team import research_graph
 from app.teams.case_management_team import case_management_graph
 from app.teams.signal_team import signal_graph
+from app.teams.sql_team import sql_graph
 
 main_supervisor = create_supervisor_agent("__main__")
 
@@ -23,5 +24,7 @@ main_graph_builder.set_entry_point("supervisor")
 main_graph_builder.add_node("research_team", research_graph)
 main_graph_builder.add_node("case_management_team", case_management_graph)
 main_graph_builder.add_node("signal_team", signal_graph)
+main_graph_builder.add_node("sql_team", sql_graph)
+
 
 super_graph = main_graph_builder.compile()

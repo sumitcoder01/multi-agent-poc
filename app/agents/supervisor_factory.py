@@ -24,7 +24,6 @@ def create_supervisor_agent(supervisor_name: str):
         )
         tools.append(handoff_tool)
 
-    # 3. --- THIS IS THE NEW PROMPT WITH AN EXPLICIT "EXIT" RULE ---
     prompt_header = (
         "You are a supervisor. Your sole responsibility is to analyze the user's request "
         "and delegate the task to the single most appropriate subordinate by calling "

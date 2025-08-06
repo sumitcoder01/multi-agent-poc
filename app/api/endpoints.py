@@ -9,7 +9,9 @@ from langchain_core.messages import (
 )
 from pydantic import BaseModel
 from app.graph.main_workflow import super_graph as graph_app
+from app.agents.sql_agent import sql_agent
 from langgraph.types import Command
+from langgraph.errors import GraphRecursionError
 
 def _serialize_event_data(data):
     """
@@ -31,6 +33,91 @@ class QueryRequest(BaseModel):
     query: str
 
 router = APIRouter()
+
+@router.post("/sql_route")
+async def invoke_sql_agent_stream(request: QueryRequest):
+    """
+    Directly invokes ONLY the SQL agent and streams back its internal steps
+    (the "chain of thought") using Server-Sent Events (SSE).
+    This is for testing and debugging the sql_agent in isolation.
+    """
+    initial_state = {"messages": [HumanMessage(content=request.query)]}
+
+    async def stream_generator():
+        """This is the generator function that will be streamed."""
+        try:
+            # We use astream, which is the async version of stream.
+            # stream_mode="values" gives us the full state at each step.
+            async for step in sql_agent.astream(
+                initial_state,
+                stream_mode="values",
+            ):
+                # The most recent action is the last message in the list.
+                last_message = step["messages"][-1]
+                
+                # Determine the type of step and format the content
+                event_type = "step" # Default
+                content = ""
+                if isinstance(last_message, AIMessage) and last_message.tool_calls:
+                    event_type = "tool_call"
+                    content = {
+                        "tool": last_message.tool_calls[0]['name'],
+                        "tool_input": last_message.tool_calls[0]['args']
+                    }
+                elif isinstance(last_message, ToolMessage):
+                    event_type = "tool_result"
+                    content = {
+                        "tool": last_message.name,
+                        "tool_output": last_message.content
+                    }
+                elif isinstance(last_message, AIMessage):
+                    event_type = "final_answer"
+                    content = last_message.content
+
+                # Format the event as a Server-Sent Event (SSE)
+                event_data = {
+                    "event": event_type,
+                    "data": content
+                }
+                yield f"data: {json.dumps(event_data)}\n\n"
+
+            # Signal the end of the stream
+            yield f"data: {json.dumps({'event': 'stream_end'})}\n\n"
+
+        except Exception:
+            print("--- ERROR: An unexpected error occurred in the SQL agent stream ---")
+            traceback.print_exc()
+            error_data = {"event": "error", "data": "An internal error occurred."}
+            yield f"data: {json.dumps(error_data)}\n\n"
+
+    return StreamingResponse(stream_generator(), media_type="text/event-stream")
+
+@router.post("/invoke")
+async def invoke_workflow(request: QueryRequest):
+    """
+    Invokes the multi-agent workflow with robust error handling.
+    """
+    recursion_limit = 25  # A higher, safer limit
+    initial_state = {"messages": [HumanMessage(content=request.query)]}
+    
+    try:
+        final_state = await graph_app.ainvoke(
+            initial_state,
+            {"recursion_limit": recursion_limit}
+        )
+        response_content = final_state['messages'][-1].content
+        
+    except GraphRecursionError:
+        print("--- ERROR: GraphRecursionError ---")
+        raise HTTPException(status_code=500, detail="The agent team entered an infinite loop. Please check supervisor prompts.")
+        
+    except Exception:
+        # This will now catch ANY error and print its full traceback
+        print("--- ERROR: An unexpected error occurred in the graph ---")
+        traceback.print_exc() # This prints the full error to your console
+        raise HTTPException(status_code=500, detail="An internal error occurred in the agent workflow.")
+
+    return {"response": response_content}
 
 @router.post("/stream")
 async def stream_workflow(request: QueryRequest):
