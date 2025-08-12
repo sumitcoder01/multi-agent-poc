@@ -1,6 +1,7 @@
 # app/teams/registry.py
 
 from app.utils.schemas import NodeDescription
+from app.data.database_metadata import DATABASE_METADATA
 
 # --- Research Team Workers ---
 wiki_worker = NodeDescription(
@@ -63,9 +64,18 @@ signal_team_supervisor = NodeDescription(
 
 sql_team_supervisor = NodeDescription(
     name="sql_team",
-    description="This team is the highest priority and MUST be used to querying a SQL database."
-)
+    description=""""This team is the highest priority and MUST be used for any query that requires accessing structured data from the application's SQL database.
+It can answer questions about users, incidents, and transactions by querying the database.
 
+Use this for questions about:
+- Statistics, counts, or aggregations (e.g., 'how many', 'what is the total').
+- Specific data lookups from tables.
+- Questions that require JOINING data between tables.
+
+The database contains the following:
+{DATABASE_METADATA}
+"""
+)
 
 HIERARCHICAL_REGISTRY = {
     "__main__": [
