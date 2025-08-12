@@ -40,10 +40,7 @@ sql_agent = create_react_agent(
 )
 
 def sql_node(state: State) -> Command[Literal["supervisor"]]:
-    """
-    This node function follows the standard worker pattern for this application.
-    It invokes the agent and returns a Command to update state and report back.
-    """
+    print("sql agent called")
     result = sql_agent.invoke(state)
     return Command(
         update={
@@ -51,6 +48,6 @@ def sql_node(state: State) -> Command[Literal["supervisor"]]:
                 HumanMessage(content=result["messages"][-1].content, name="sql_agent")
             ]
         },
-        # We want our workers to ALWAYS "report back" to the supervisor when done
         goto="supervisor",
     )
+

@@ -6,6 +6,7 @@ from langchain_core.messages import SystemMessage, BaseMessage
 from app.llm.llm_client import llm
 from app.teams.registry import HIERARCHICAL_REGISTRY
 from app.tools.handoff import create_handoff_tool
+from langchain_core.messages import HumanMessage
 
 def create_supervisor_agent(supervisor_name: str):
     """
@@ -17,6 +18,7 @@ def create_supervisor_agent(supervisor_name: str):
 
     # 2. Dynamically create a handoff tool for each member.
     tools = []
+    member_names = [m.name for m in members]
     for member in members:
         handoff_tool = create_handoff_tool(
             agent_name=member.name,
@@ -24,26 +26,33 @@ def create_supervisor_agent(supervisor_name: str):
         )
         tools.append(handoff_tool)
 
-    prompt_header = (
-        "You are a supervisor. Your sole responsibility is to analyze the user's request "
-        "and delegate the task to the single most appropriate subordinate by calling "
-        "the correct tool. Do not answer the user's question yourself.\n\n"
+    system_prompt = (
+        "You are a supervisor. Your role is to manage a workflow by analyzing the conversation "
+        "history and deciding the next step. You can either delegate to a subordinate by calling "
+        "a tool, or you can provide the final answer to the user if the task is complete.\n\n"
+        "## YOUR AVAILABLE SUBORDINATES (TOOLS):\n"
+        "\n".join(f"- **{tool.name}**: {tool.description}" for tool in tools) +
+        "\n\n"
+        "## YOUR DECISION-MAKING PROCESS (Follow these steps in order):\n"
+        "1.  **Examine the `name` of the last message in the conversation.**\n"
+        "2.  **Check for Worker Completion:** If the `name` of the last message is one of your subordinates "
+        f"({', '.join(member_names)}), it means that worker has just finished its task. The overall job is complete. "
+        "You MUST provide a final, concluding answer to the user based on that worker's result. "
+        "**Do NOT use any more tools.**\n"
+        "3.  **Delegate if Necessary:** If the last message is from the user (i.e., its `name` is not a subordinate's name), "
+        "you MUST choose the single best tool to call to delegate the task.\n"
+        "4.  **Handle Greetings:** If the user's request is a simple greeting and does not require delegation, "
+        "you may respond with a polite, conversational message without using a tool.\n\n"
+        "Your final output must be either a single tool call OR a direct conversational response."
     )
-
-    final_instruction = (
-        "\n\n## INSTRUCTIONS:\n"
-        "1.  Read the user's request.\n"
-        "2.  Choose the single/one best tool to call to delegate the task.\n"
-        "3.  If the request is a simple greeting (e.g., 'hello'), you may respond directly."
-    )
-    
-    final_prompt_text = prompt_header + final_instruction
 
     def supervisor_prompt_modifier(state: dict) -> List[BaseMessage]:
-        """Injects the dynamically generated system prompt."""
-        messages = state["messages"]
-        modified_messages = [SystemMessage(content=final_prompt_text)] + messages
-        return modified_messages
+        """
+        Injects the system prompt. It passes the full message history so the
+        supervisor can see the 'name' of the last message.
+        """
+        # We pass the full history so the supervisor can see the 'name'.
+        return [SystemMessage(content=system_prompt)] + state["messages"]
         
     # 4. Create the ReAct agent.
     agent = create_react_agent(
