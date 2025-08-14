@@ -1,46 +1,54 @@
 # app/agents/sql_agent.py
 
 from langgraph.prebuilt import create_react_agent
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage
 from app.llm.llm_client import llm
 from app.graph.state import State
 from typing import Literal
 from langgraph.types import Command
+
+from app.tools.sql_retrieval_tool import sql_retriever_tool
 from app.tools.sql_tool import sql_tools
 
-sql_agent_prompt = """
-You are an agent designed to interact with a SQL database.
-Given an input question, create a syntactically correct {dialect} query to run,
-then look at the results of the query and return the answer. Unless the user
-specifies a specific number of examples they wish to obtain, always limit your
-query to at most {top_k} results.
 
-You can order the results by a relevant column to return the most interesting
-examples in the database. Never query for all the columns from a specific table,
-only ask for the relevant columns given the question.
+tools = [sql_retriever_tool] + sql_tools
 
-You MUST double check your query before executing it. If you get an error while
-executing a query, rewrite the query and try again.
 
-DO NOT make any DML statements (INSERT, UPDATE, DELETE, DROP etc.) to the
-database.
+sql_rag_agent_prompt_template = ChatPromptTemplate.from_messages(
+    [
+        (
+            "system",
+            """You are a highly efficient PostgreSQL agent. Your only goal is to answer the user's question by generating and executing a SQL query.
 
-To start you should ALWAYS look at the tables in the database to see what you
-can query. Do NOT skip this step.
+To do this, you MUST follow this exact, efficient procedure:
 
-Then you should query the schema of the most relevant tables.
-""".format(
-    dialect="Postgres",
-    top_k=5,
+1.  **Retrieve Relevant Context:** Your first and most important step is to call the `retrieve_schema_and_examples` tool. Use the user's natural language question as the input to this tool to get the most relevant table schemas and similar, working example queries.
+
+2.  **Generate a Better Query:** You MUST use the context retrieved in the previous step to help you write a better, more accurate PostgreSQL query. Analyze the example queries and the provided schemas to construct your final query.
+
+3.  **Execute Query:** Use the `QuerySQLDatabaseTool` with your newly constructed, syntactically correct PostgreSQL query to get the final answer.
+
+**Safety Rule:**
+- You MUST NOT use any DML statements (INSERT, UPDATE, DELETE, DROP).
+
+Your final answer must be a clear, natural language response based on the data returned by your query.
+"""
+        ),
+        ("placeholder", "{messages}"), 
+    ]
 )
+
 sql_agent = create_react_agent(
     llm,
-    sql_tools,
-    prompt=sql_agent_prompt
+    tools,
+    prompt=sql_rag_agent_prompt_template
 )
 
 def sql_node(state: State) -> Command[Literal["supervisor"]]:
-    print("sql agent called")
+    """
+    Invokes the RAG SQL agent and returns a Command to update state and report back.
+    """
     result = sql_agent.invoke(state)
     return Command(
         update={
@@ -50,4 +58,3 @@ def sql_node(state: State) -> Command[Literal["supervisor"]]:
         },
         goto="supervisor",
     )
-

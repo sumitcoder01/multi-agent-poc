@@ -8,6 +8,8 @@ langchain-community
 wikipedia
 langchain-groq
 langchain-openai
+langchain-google-genai
+langchain-chroma
 langchain-deepseek
 langchain-huggingface
 huggingface-hub

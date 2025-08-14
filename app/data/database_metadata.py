@@ -8,6 +8,4 @@ This database tracks incidents, transactions, and the people involved (focal_par
 - To find a transaction for an incident: JOIN `transactions.related_incident_id` ON `incidents.id`.
 ncidents`(id, title, status, priority, reporter_id): Stores information about reported security or operational events.
 - `transactions`(id, amount, status, source_party_id, destination_party_id, related_incident_id): Stores information about financial transfers.
-
-### Key Joins
 """
