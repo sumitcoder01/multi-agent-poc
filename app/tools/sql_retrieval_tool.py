@@ -4,15 +4,19 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 from langchain.agents.agent_toolkits import create_retriever_tool
 
+from app.core.config import (
+    CHROMA_PATH,
+    CHROMA_COLLECTION
+)
 
 embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-db_directory = "./chroma_db_sql"
+db_directory = CHROMA_PATH
 
 vector_store = Chroma(
     persist_directory=db_directory,
     embedding_function=embeddings,
-    collection_name="sql_rag_collection"
+    collection_name=CHROMA_COLLECTION
 )
 
 retriever = vector_store.as_retriever(search_kwargs={"k": 5})

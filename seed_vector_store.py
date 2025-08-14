@@ -7,33 +7,62 @@ from dotenv import load_dotenv
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_chroma import Chroma
 
-FEW_SHOT_QUERIES = [
-    # Simple Lookups
-    "Who reported the incident with the title 'Unauthorized Server Access'?",
-    "What is the summary for incident INC-002?",
-    "Show me the details for transaction TRN-101.",
-
-    # Counts and Aggregations
-    "How many incidents are currently in 'Open' status?",
-    "What is the total transaction amount in 'USD' for all 'Completed' transactions?",
-    "What is the average transaction amount for incidents with 'High' priority?",
-
-    # Filtering and Sorting
-    "List the full names of all focal parties with the role 'Compliance Officer'.",
-    "Show me all 'Pending' transactions.",
-    "List all incidents, ordered by their priority.",
-
-    # Complex JOINs
-    "Find the email address of the person who is the source for transaction TRN-101.",
-    "What is the name of the person who reported the incident related to transaction TRN-103?",
-    "List the titles of all incidents reported by 'Alice Anderson'.",
+FEW_SHOT_PAIRS = [
+    {
+        "question": "Who reported the incident with the title 'Unauthorized Server Access'?",
+        "sql_command": """
+            SELECT T2.full_name
+            FROM incidents AS T1
+            INNER JOIN focal_parties AS T2 ON T1.reporter_id = T2.id
+            WHERE T1.title = 'Unauthorized Server Access';
+        """
+    },
+    {
+        "question": "How many incidents are currently in 'Open' status?",
+        "sql_command": "SELECT count(*) FROM incidents WHERE status = 'Open';"
+    },
+    {
+        "question": "List the full names of all focal parties with the role 'Compliance Officer'.",
+        "sql_command": "SELECT full_name FROM focal_parties WHERE role = 'Compliance Officer';"
+    },
+    {
+        "question": "What is the total transaction amount in 'USD' for all 'Completed' transactions?",
+        "sql_command": "SELECT sum(amount) FROM transactions WHERE currency = 'USD' AND status = 'Completed';"
+    },
+    {
+        "question": "Find the email address of the person who is the source for transaction TRN-101.",
+        "sql_command": """
+            SELECT T2.email
+            FROM transactions AS T1
+            INNER JOIN focal_parties AS T2 ON T1.source_party_id = T2.id
+            WHERE T1.id = 'TRN-101';
+        """
+    },
+    {
+        "question": "What is the name of the person who reported the incident related to transaction TRN-103?",
+        "sql_command": """
+            SELECT T3.full_name
+            FROM transactions AS T1
+            INNER JOIN incidents AS T2 ON T1.related_incident_id = T2.id
+            INNER JOIN focal_parties AS T3 ON T2.reporter_id = T3.id
+            WHERE T1.id = 'TRN-103';
+        """
+    },
+    {
+        "question": "List the titles of all incidents reported by 'Alice Anderson'.",
+        "sql_command": """
+            SELECT T1.title
+            FROM incidents AS T1
+            INNER JOIN focal_parties AS T2 ON T1.reporter_id = T2.id
+            WHERE T2.full_name = 'Alice Anderson';
+        """
+    }
 ]
+
 
 def get_database_schema(db_url: str) -> str:
     """Connects to the database and extracts the full schema for all tables."""
     print("Connecting to database to extract schema...")
-    # This function is correct and does not need to change.
-    # ... (rest of the function is the same)
     compatible_url = db_url.replace("postgresql+psycopg2://", "postgresql://")
     conn = psycopg2.connect(compatible_url)
     cur = conn.cursor()
@@ -61,29 +90,29 @@ def seed_vector_store():
     # Load the necessary variables from the environment
     DATABASE_URL = os.getenv("DATABASE_URL")
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+    CHROMA_PATH = os.getenv("CHROMA_PATH")
+    CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION")
 
     if not GOOGLE_API_KEY:
         print("!!! ERROR: GOOGLE_API_KEY not found in .env file. Aborting. !!!")
         return
 
-    # --- THIS IS THE CRITICAL CHANGE ---
-    # 1. Initialize the Google Generative AI Embedding function.
-    #    The model "embedding-001" is Google's latest text embedding model.
     try:
         print("Initializing Google Gemini embeddings...")
         embeddings = GoogleGenerativeAIEmbeddings(
             model="models/embedding-001", 
             google_api_key=GOOGLE_API_KEY
         )
+
     except Exception as e:
         print(f"!!! ERROR: Could not initialize Google embeddings. Ensure your GOOGLE_API_KEY is set correctly. Error: {e} !!!")
         return
 
     # 2. Initialize the Chroma vector store
-    db_directory = "./chroma_db_sql" # Using a new directory for the new embeddings
+    db_directory = CHROMA_PATH # Using a new directory for the new embeddings
     print(f"Initializing ChromaDB, which will be persisted to '{db_directory}'...")
     vector_store = Chroma(
-        collection_name="sql_rag_collection",
+        collection_name=CHROMA_COLLECTION,
         embedding_function=embeddings,
         persist_directory=db_directory,
     )
@@ -91,7 +120,13 @@ def seed_vector_store():
     # 3. Prepare the documents to be added
     print("Preparing documents for vectorization...")
     database_schema_doc = get_database_schema(DATABASE_URL)
-    documents = [database_schema_doc] + FEW_SHOT_QUERIES
+    
+    few_shot_docs = [
+        f"User Question: {pair['question']}\nSQL Command: {pair['sql_command']}"
+        for pair in FEW_SHOT_PAIRS
+    ]
+    
+    documents = [database_schema_doc] + few_shot_docs
     
     # 4. Add the documents to the vector store
     print(f"Adding {len(documents)} documents to the vector store... (This may take a moment)")

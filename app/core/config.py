@@ -24,6 +24,9 @@ TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+CHROMA_PATH = os.getenv("CHROMA_PATH")
+CHROMA_COLLECTION = os.getenv("CHROMA_COLLECTION")
+
 # --- Conditional Validation ---
 # Raise an error at startup if the required key for the selected provider is missing.
 if LLM_PROVIDER == 'groq' and not GROQ_API_KEY:
@@ -46,3 +49,9 @@ if not TAVILY_API_KEY:
 
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL not found in .env file. Please add it.")
+
+if not CHROMA_PATH:
+    raise ValueError("CHROMA_PATH not found in .env file. Please add it.")
+
+if not CHROMA_COLLECTION:
+    raise ValueError("CHROMA_COLLECTION not found in .env file. Please add it.")

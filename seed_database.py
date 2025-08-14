@@ -3,7 +3,7 @@
 import os
 import psycopg2
 from dotenv import load_dotenv
-from urllib.parse import urlparse # <-- Import the URL parsing library
+from urllib.parse import urlparse
 
 def setup_database():
     """
@@ -20,10 +20,6 @@ def setup_database():
         print("!!! ERROR: DATABASE_URL not found in .env file. Aborting. !!!")
         return
         
-    # --- THIS IS THE CRITICAL CHANGE ---
-    # The langchain format is "postgresql+psycopg2://...".
-    # The psycopg2 library itself expects "postgresql://..." or a DSN string.
-    # We will make it compatible by removing the "+psycopg2".
     if "postgresql+psycopg2://" in database_url:
         compatible_url = database_url.replace("postgresql+psycopg2://", "postgresql://")
     else:
